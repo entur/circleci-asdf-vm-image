@@ -1,0 +1,11 @@
+schemaVersion: 2.0.0
+
+metadataTest:
+  # Image has expected default metadata
+  user: "circleci"
+
+commandTests:
+  - name: "asdf 0.10.0 is installed"
+    command: "asdf"
+    args: ["version"]
+    expectedOutput: ["v0.10.0"]

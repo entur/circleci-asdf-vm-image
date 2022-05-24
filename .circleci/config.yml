@@ -1,0 +1,169 @@
+version: 2.1
+
+orbs:
+  docker: circleci/docker@2.0.5
+  clair: ovotech/clair-scanner@1.6.0
+
+executors:
+  base:
+    docker:
+      - image: cimg/base:2022.03
+    resource_class: small
+  container-test:
+    docker:
+      - image: docker:stable
+    environment:
+      IMAGE_ENV: "img-$CIRCLE_BRANCH"
+    resource_class: small
+
+commands:
+  save-docker-image:
+    parameters:
+      tag:
+        description: which tag to persist
+        type: string
+    steps:
+      - run:
+          name: Save docker image
+          command: |
+            mkdir -p build/docker/
+            docker save -o build/docker/docker.tar <<parameters.tag>>
+  install-vs4git:
+    description: "Installs vs4git"
+    parameters:
+      version:
+        type: string
+        default: "2.7.0"
+    steps:
+      - run: curl -sLo /tmp/sv4git.tar.gz "https://github.com/bvieira/sv4git/releases/download/v<< parameters.version >>/git-sv_<< parameters.version >>_linux_amd64.tar.gz"
+      - run: sudo tar -zxf /tmp/sv4git.tar.gz -C /usr/bin
+      - run: sudo chmod +x /usr/bin/git-sv
+  install-gitlint:
+    description: "Installs gitlint"
+    steps:
+      - run: sudo apt-get update
+      - run: sudo apt-get install gitlint
+  set-git-author:
+    description: Set config for user name and email (Circle CI)
+    steps:
+      - run: git config --global user.name "Circle CI"
+      - run: git config --global user.email "circleci.service@entur.org"
+
+jobs:
+  container-vulnerability-scan:
+    executor: clair/default
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - clair/scan:
+          docker_tar_dir: build/docker/
+
+  test-docker-image:
+    executor: container-test
+    parameters:
+      image-source:
+        description: "A packaged docker image to load"
+        type: string
+      image-tag:
+        description: "The image tag to test"
+        type: string
+    environment:
+      JOB_ENV: "job-${CIRCLE_BRANCH}"
+    steps:
+      - setup_remote_docker
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: Load docker image
+          command: docker load -i <<parameters.image-source>>
+      - run:
+          name: Test docker image
+          command: |
+            apk add --no-cache curl > /dev/null
+            curl -LO https://storage.googleapis.com/container-structure-test/latest/container-structure-test-linux-amd64 && chmod +x container-structure-test-linux-amd64 && mv container-structure-test-linux-amd64 /usr/local/bin/container-structure-test
+            container-structure-test test --config container-test.yml --image <<parameters.image-tag>> --output junit --test-report "container-structure-results.xml"
+      - store_test_results:
+          path: container-structure-results.xml
+      - store_artifacts:
+          path: container-structure-results.xml
+  tag-release:
+    executor: base
+    steps:
+      - install-vs4git
+      - set-git-author
+      - checkout
+      - run: git sv tag
+  commit-lint:
+    executor: base
+    steps:
+      - install-gitlint
+      - checkout
+      - run: gitlint --commits main..HEAD
+
+workflows:
+  main:
+    jobs:
+      - commit-lint:
+          name: "Verify conventional commit log"
+          context: global
+      - docker/publish:
+          name: "Docker build to archive"
+          dockerfile: "Dockerfile"
+          deploy: false
+          lint-dockerfile: true
+          image: entur/asdf-vm-ci
+          tag: $CIRCLE_SHA1
+          context: global
+          extra_build_args: |
+            --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') 
+            --build-arg VCS_REF=$CIRCLE_SHA1
+            --build-arg BUILD_VERSION=$(git sv nv)-dev
+          post-steps:
+            - save-docker-image:
+                tag: entur/asdf-vm-ci:$CIRCLE_SHA1
+            - persist_to_workspace:
+                root: .
+                paths:
+                  - build/docker/
+
+      - test-docker-image:
+          name: "Container image test"
+          image-source: build/docker/docker.tar
+          image-tag: entur/harness-delegate:$CIRCLE_WORKFLOW_ID
+          context: global
+          requires:
+            - "Docker build to archive"
+
+      - container-vulnerability-scan:
+          name: "Container image vulnerability scan"
+          context: global
+          requires:
+            - "Docker build to archive"
+
+      - tag-release:
+          name: "Tagging release"
+          context: global
+          requires:
+            - "Verify conventional commit log"
+            - "Container image test"
+            - "Container image vulnerability scan"
+          filters:
+            branches:
+              only: "main"
+      - docker/publish:
+          name: "Publish to Docker Hub"
+          dockerfile: "Dockerfile"
+          deploy: true
+          update-description: true
+          image: entur/asdf-vm-ci
+          tag: latest,$CIRCLE_SHA1,$(git sv cv)
+          docker-username: DOCKER_LOGIN
+          docker-password: DOCKER_PASSWORD
+          context: global
+          requires:
+            - "Tagging release"
+          filters:
+            branches:
+              only: "main"
