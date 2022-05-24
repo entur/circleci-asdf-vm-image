@@ -1,9 +1,10 @@
 # Base on official circle ci base image
 FROM cimg/base:stable
 
-ARG BUILD_DATE
-ARG VCS_REF
-ARG BUILD_VERSION
+#ARG X=${...} is a workaround for https://github.com/RedCoolBeans/dockerlint/issues/52
+ARG BUILD_DATE=${BUILD_DATE:-""}
+ARG VCS_REF=${VCS_REF:-""}
+ARG BUILD_VERSION=${BUILD_VERSION:-""}
 
 # Labels:
 LABEL maintainer="The Platform Team at Entur"
