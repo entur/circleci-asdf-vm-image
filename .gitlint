@@ -1,0 +1,7 @@
+[general]
+ignore=body-is-missing
+# Enable community contributed rules for conventional commits
+contrib=contrib-title-conventional-commits
+
+[contrib-title-conventional-commits]
+types = fix,feat,chore,docs,style,refactor,perf,test,revert,ci,build

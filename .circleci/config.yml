@@ -117,9 +117,9 @@ workflows:
           tag: $CIRCLE_SHA1
           context: global
           extra_build_args: |
-            --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-            --build-arg VCS_REF="$CIRCLE_SHA1"
-            --build-arg BUILD_VERSION="$(git sv nv)-dev"
+            --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            --build-arg VCS_REF="$CIRCLE_SHA1" \
+            --build-arg BUILD_VERSION="$(git sv nv)-dev" \
           pre-steps:
             - install-vs4git
           post-steps:
@@ -133,7 +133,7 @@ workflows:
       - test-docker-image:
           name: "Container image test"
           image-source: build/docker/docker.tar
-          image-tag: entur/harness-delegate:$CIRCLE_WORKFLOW_ID
+          image-tag: entur/circleci-asdf-vm:$CIRCLE_SHA1
           context: global
           requires:
             - "Docker build to archive"
