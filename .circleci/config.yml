@@ -161,8 +161,8 @@ workflows:
           update-description: true
           image: entur/circleci-asdf-vm
           tag: latest,$CIRCLE_SHA1,$(git sv cv)
-          docker-username: DOCKER_LOGIN
-          docker-password: DOCKER_PASSWORD
+          docker-username: DOCKERHUB_LOGIN
+          docker-password: DOCKERHUB_PASSWORD
           context: global
           pre-steps:
             - install-vs4git
