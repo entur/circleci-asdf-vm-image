@@ -113,16 +113,18 @@ workflows:
           dockerfile: "Dockerfile"
           deploy: false
           lint-dockerfile: true
-          image: entur/asdf-vm-ci
+          image: entur/circleci-asdf-vm
           tag: $CIRCLE_SHA1
           context: global
           extra_build_args: |
-            --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') 
-            --build-arg VCS_REF=$CIRCLE_SHA1
-            --build-arg BUILD_VERSION=$(git sv nv)-dev
+            --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            --build-arg VCS_REF="$CIRCLE_SHA1"
+            --build-arg BUILD_VERSION="$(git sv nv)-dev"
+          pre-steps:
+            - install-vs4git
           post-steps:
             - save-docker-image:
-                tag: entur/asdf-vm-ci:$CIRCLE_SHA1
+                tag: entur/circleci-asdf-vm:$CIRCLE_SHA1
             - persist_to_workspace:
                 root: .
                 paths:
@@ -157,11 +159,13 @@ workflows:
           dockerfile: "Dockerfile"
           deploy: true
           update-description: true
-          image: entur/asdf-vm-ci
+          image: entur/circleci-asdf-vm
           tag: latest,$CIRCLE_SHA1,$(git sv cv)
           docker-username: DOCKER_LOGIN
           docker-password: DOCKER_PASSWORD
           context: global
+          pre-steps:
+            - install-vs4git
           requires:
             - "Tagging release"
           filters:
