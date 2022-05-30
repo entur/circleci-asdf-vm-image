@@ -108,18 +108,20 @@ workflows:
       - commit-lint:
           name: "Verify conventional commit log"
           context: global
+      - docker/hadolint:
+          name: "Linting docker-file"
       - docker/publish:
           name: "Docker build to archive"
           dockerfile: "Dockerfile"
           deploy: false
-          lint-dockerfile: true
+          lint-dockerfile: false
           image: entur/circleci-asdf-vm
           tag: $CIRCLE_SHA1
-          context: global
           extra_build_args: |
             --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
             --build-arg VCS_REF="$CIRCLE_SHA1" \
             --build-arg BUILD_VERSION="$(git sv nv)-dev" \
+          context: global
           pre-steps:
             - install-vs4git
           post-steps:
@@ -163,6 +165,10 @@ workflows:
           tag: latest,$CIRCLE_SHA1,$(git sv cv)
           docker-username: DOCKERHUB_LOGIN
           docker-password: DOCKERHUB_PASSWORD
+          extra_build_args: |
+            --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            --build-arg VCS_REF="$CIRCLE_SHA1" \
+            --build-arg BUILD_VERSION="$(git sv cv)" \
           context: global
           pre-steps:
             - install-vs4git
