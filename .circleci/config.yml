@@ -112,13 +112,11 @@ workflows:
           name: "Linting docker-file"
       - docker/publish:
           name: "Docker build to archive"
-          dockerfile: "Dockerfile"
           deploy: false
-          lint-dockerfile: false
           image: entur/circleci-asdf-vm
-          tag: $CIRCLE_SHA1
           extra_build_args: |
             --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            --build-arg REPOSITORY_URL="$CIRCLE_REPOSITORY_URL" \
             --build-arg VCS_REF="$CIRCLE_SHA1" \
             --build-arg BUILD_VERSION="$(git sv nv)-dev" \
           context: global
@@ -158,8 +156,6 @@ workflows:
               only: "main"
       - docker/publish:
           name: "Publish to Docker Hub"
-          dockerfile: "Dockerfile"
-          deploy: true
           update-description: true
           image: entur/circleci-asdf-vm
           tag: latest,$CIRCLE_SHA1,$(git sv cv)
@@ -167,6 +163,7 @@ workflows:
           docker-password: DOCKERHUB_PASSWORD
           extra_build_args: |
             --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            --build-arg REPOSITORY_URL="$CIRCLE_REPOSITORY_URL" \
             --build-arg VCS_REF="$CIRCLE_SHA1" \
             --build-arg BUILD_VERSION="$(git sv cv)" \
           context: global
